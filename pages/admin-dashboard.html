@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard — CampusCare</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- Shared Sidebar -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- Main -->
+  <div class="main-content">
+    <header class="topbar">
+      <button id="navToggle" aria-label="Toggle navigation">☰</button>
+      <div class="topbar-title">Admin Dashboard</div>
+      <div class="topbar-actions">
+        <button class="btn btn-secondary btn-sm" id="resetDemoBtn">Reset Demo Data</button>
+        <a href="manage-complaints.html" class="btn btn-primary btn-sm">Manage All →</a>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <h1 id="greeting">Admin Dashboard</h1>
+        <p>System-wide complaint overview for all campus facilities.</p>
+      </div>
+
+      <!-- KPIs -->
+      <div class="stats-grid" id="statsGrid"></div>
+
+      <!-- Category breakdown -->
+      <h2 style="margin-bottom:12px">By Category</h2>
+      <div class="stats-grid" id="catGrid"></div>
+
+      <!-- Recent all complaints table -->
+      <h2 style="margin:24px 0 12px">Recent Complaints (All Students)</h2>
+      <div class="card" style="padding:0">
+        <div class="table-wrap">
+          <table id="recentTable">
+            <thead><tr>
+              <th>Ticket ID</th><th>Title</th><th>Category</th>
+              <th>Priority</th><th>Status</th><th>Submitted</th><th>Action</th>
+            </tr></thead>
+            <tbody id="recentBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="../js/data.js"></script>
+<script src="../js/app.js"></script>
+<script>
+var user = requireAuth(["admin"]);
+if (user) {
+  buildSidebar(user, "admin-dashboard");
+  initMobileNav();
+
+  document.getElementById("greeting").textContent = "Welcome, " + user.name.split(" ")[0] + "!";
+
+  document.getElementById("resetDemoBtn").addEventListener("click", function() {
+    if (confirm("Reset all complaints and data to demo defaults?")) {
+      resetDemoData();
+    }
+  });
+
+  var complaints = loadComplaints();
+
+  var statuses = ["Submitted","Assigned","In Progress","Waiting","Resolved","Closed"];
+  renderStats(document.getElementById("statsGrid"), complaints, statuses);
+
+  var catGrid = document.getElementById("catGrid");
+  catGrid.innerHTML = Object.keys(CATEGORIES).map(function(cat) {
+    var n = complaints.filter(function(c){ return c.category === cat; }).length;
+    return '<div class="stat-card"><div class="stat-num">' + n + '</div><div class="stat-label">' + esc(cat) + '</div></div>';
+  }).join("");
+
+  var recent = complaints.slice().sort(function(a,b){ return new Date(b.createdAt)-new Date(a.createdAt); }).slice(0,10);
+  var tbody = document.getElementById("recentBody");
+  tbody.innerHTML = recent.map(function(c) {
+    return '<tr>' +
+      '<td><code style="font-size:.78rem">' + esc(c.id) + '</code></td>' +
+      '<td>' + esc(c.title) + '</td>' +
+      '<td>' + esc(c.category) + '</td>' +
+      '<td><span class="priority-dot ' + (PRIORITY_CLASS[c.priority] || "pri-normal") + '">' + esc(c.priority) + '</span></td>' +
+      '<td><span class="badge ' + (STATUS_CLASS[c.status] || "badge-gray") + '">' + esc(c.status) + '</span></td>' +
+      '<td style="font-size:.78rem">' + fmtDate(c.createdAt) + '</td>' +
+      '<td><button class="btn btn-secondary btn-sm" data-id="' + esc(c.id) + '">View</button></td>' +
+    '</tr>';
+  }).join("");
+
+  if (!recent.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">No complaints yet.</td></tr>';
+  }
+
+  document.getElementById("recentTable").addEventListener("click", function(e) {
+    var btn = e.target;
+    if (btn && btn.tagName === "BUTTON" && btn.getAttribute("data-id")) {
+      openComplaint(btn.getAttribute("data-id"));
+    }
+  });
+}
+</script>
+</body>
+</html>

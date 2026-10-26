@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Complaint Detail — CampusCare</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- Shared Sidebar -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- Main -->
+  <div class="main-content">
+    <header class="topbar">
+      <button id="navToggle" aria-label="Toggle navigation">☰</button>
+      <div class="topbar-title" id="topbarTitle">Complaint Detail</div>
+      <div class="topbar-actions">
+        <button id="backBtn" class="btn btn-secondary btn-sm" aria-label="Go back">← Back</button>
+      </div>
+    </header>
+
+    <main class="page-content" id="detailContent">
+      <div class="empty-state"><p>Loading…</p></div>
+    </main>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="../js/data.js"></script>
+<script src="../js/app.js"></script>
+<script>
+var user = requireAuth(["student","staff","admin"]);
+if (user) {
+  buildSidebar(user, "");
+  initMobileNav();
+
+  document.getElementById("backBtn").addEventListener("click", function() {
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      var home = user.role === "admin" ? "admin-dashboard.html" : (user.role === "staff" ? "staff-dashboard.html" : "student-dashboard.html");
+      window.location.href = home;
+    }
+  });
+
+  var params = new URLSearchParams(window.location.search);
+  var complaintId = params.get("id");
+
+  function renderDetailPage() {
+    var complaints = loadComplaints();
+    var c = complaints.find(function(x){ return x.id === complaintId; });
+
+    if (!c) {
+      document.getElementById("detailContent").innerHTML = '<div class="empty-state"><p>Complaint not found.</p></div>';
+      return;
+    }
+
+    // Role security check: students can only see their own complaints
+    if (user.role === "student" && c.userId !== user.id) {
+      document.getElementById("detailContent").innerHTML = '<div class="empty-state"><p>Access denied. You can only view your own complaints.</p></div>';
+      return;
+    }
+
+    document.getElementById("topbarTitle").textContent = c.id;
+
+    var timelineHTML = (c.timeline || []).map(function(t) {
+      return '<li>' +
+        '<div class="tl-dot"></div>' +
+        '<div class="tl-body">' +
+          '<div class="tl-action">' + esc(t.action) + '</div>' +
+          '<div class="tl-meta">' + esc(t.by) + ' · ' + fmtDate(t.date) + '</div>' +
+        '</div></li>';
+    }).join("");
+
+    // Action panel
+    var actionPanelHTML = "";
+
+    // 1. Staff or Admin update panel
+    var canUpdate = (user.role === "admin") || (user.role === "staff" && c.assignedToId === user.id);
+
+    if (canUpdate) {
+      var statusOptions = [];
+      if (user.role === "admin") {
+        statusOptions = ["Submitted", "Assigned", "In Progress", "Waiting", "Resolved", "Closed"];
+      } else {
+        // Staff follows STATUS_FLOW: current status + allowed next steps
+        statusOptions = [c.status];
+        var allowed = STATUS_FLOW[c.status] || [];
+        for (var i = 0; i < allowed.length; i++) {
+          if (statusOptions.indexOf(allowed[i]) === -1) {
+            statusOptions.push(allowed[i]);
+          }
+        }
+      }
+
+      var statusSelectHTML = statusOptions.map(function(s) {
+        return '<option value="' + esc(s) + '"' + (s === c.status ? ' selected' : '') + '>' + esc(s) + '</option>';
+      }).join("");
+
+      var adminFieldsHTML = "";
+      if (user.role === "admin") {
+        var staffList = getStaffList();
+        var staffOptions = '<option value="">— Unassigned —</option>' + staffList.map(function(s) {
+          return '<option value="' + esc(s.id) + '"' + (s.id === c.assignedToId ? ' selected' : '') + '>' + esc(s.name) + ' (' + esc(s.id) + ')</option>';
+        }).join("");
+
+        adminFieldsHTML =
+          '<div class="form-group">' +
+            '<label for="assignToStaff">Assign To</label>' +
+            '<select id="assignToStaff" class="form-control">' + staffOptions + '</select>' +
+          '</div>' +
+          '<div class="form-group">' +
+            '<label for="editPriority">Priority</label>' +
+            '<select id="editPriority" class="form-control">' +
+              ['Low', 'Normal', 'High', 'Urgent'].map(function(p) {
+                return '<option value="' + p + '"' + (p === c.priority ? ' selected' : '') + '>' + p + '</option>';
+              }).join("") +
+            '</select>' +
+          '</div>';
+      }
+
+      actionPanelHTML =
+        '<div class="card" style="margin-top:16px">' +
+          '<h3 style="margin-bottom:14px">Update Status</h3>' +
+          '<form id="updateForm" novalidate>' +
+            '<div class="form-group">' +
+              '<label for="newStatus">New Status</label>' +
+              '<select id="newStatus" class="form-control">' + statusSelectHTML + '</select>' +
+            '</div>' +
+            adminFieldsHTML +
+            '<div class="form-group">' +
+              '<label for="updateNote">Note / Work Done</label>' +
+              '<textarea id="updateNote" class="form-control" rows="3" placeholder="Add a note to the timeline…"></textarea>' +
+            '</div>' +
+            '<button type="submit" class="btn btn-primary btn-sm" id="saveUpdateBtn">Save Update</button>' +
+          '</form>' +
+        '</div>';
+    } else if (user.role === "student" && c.status === "Resolved") {
+      // Optional student action: confirm closure or reopen
+      actionPanelHTML =
+        '<div class="card" style="margin-top:16px">' +
+          '<h3 style="margin-bottom:12px">Resolution Status</h3>' +
+          '<p style="font-size:.85rem;margin-bottom:14px">Has this complaint been resolved to your satisfaction?</p>' +
+          '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
+            '<button class="btn btn-primary btn-sm" id="btnStudentClose">Accept &amp; Close</button>' +
+            '<button class="btn btn-secondary btn-sm" id="btnStudentReopen">Reopen Issue</button>' +
+          '</div>' +
+        '</div>';
+    }
+
+    var assignedDisplay = c.assignedTo || "Not yet assigned";
+    if (c.assignedToId) {
+      assignedDisplay += " (" + c.assignedToId + ")";
+    }
+
+    document.getElementById("detailContent").innerHTML =
+      '<div class="page-header">' +
+        '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
+          '<h1 style="font-size:1.3rem">' + esc(c.title) + '</h1>' +
+          '<span class="badge ' + (STATUS_CLASS[c.status] || "badge-gray") + '">' + esc(c.status) + '</span>' +
+          '<span class="priority-dot ' + (PRIORITY_CLASS[c.priority] || "pri-normal") + '">' + esc(c.priority) + '</span>' +
+        '</div>' +
+        '<p style="margin-top:4px;font-size:.82rem;color:var(--text-muted)">' + esc(c.id) + '</p>' +
+      '</div>' +
+      '<div class="detail-grid">' +
+        '<div>' +
+          '<div class="card">' +
+            '<h3 style="margin-bottom:12px">Details</h3>' +
+            '<div class="detail-meta">' +
+              '<div class="meta-item"><label>Category</label><p>' + esc(c.category) + '</p></div>' +
+              '<div class="meta-item"><label>Sub-category</label><p>' + esc(c.sub) + '</p></div>' +
+              '<div class="meta-item"><label>Location</label><p>' + esc(c.location) + '</p></div>' +
+              '<div class="meta-item"><label>Assigned To</label><p>' + esc(assignedDisplay) + '</p></div>' +
+              '<div class="meta-item"><label>Submitted</label><p>' + fmtDate(c.createdAt) + '</p></div>' +
+              '<div class="meta-item"><label>Last Updated</label><p>' + fmtDate(c.updatedAt) + '</p></div>' +
+            '</div>' +
+            '<h3 style="margin:16px 0 8px">Description</h3>' +
+            '<p style="color:var(--text);font-size:.9rem;line-height:1.7">' + esc(c.description) + '</p>' +
+          '</div>' +
+          actionPanelHTML +
+        '</div>' +
+        '<div class="card" style="height:fit-content">' +
+          '<h3 style="margin-bottom:16px">Timeline</h3>' +
+          '<ul class="timeline">' + timelineHTML + '</ul>' +
+        '</div>' +
+      '</div>';
+
+    // Wire update form submission
+    var updateForm = document.getElementById("updateForm");
+    if (updateForm) {
+      updateForm.addEventListener("submit", function(e) {
+        e.preventDefault();
+        submitUpdate(c);
+      });
+    }
+
+    // Wire student actions if rendered
+    var btnClose = document.getElementById("btnStudentClose");
+    if (btnClose) {
+      btnClose.addEventListener("click", function() {
+        studentClose(c);
+      });
+    }
+    var btnReopen = document.getElementById("btnStudentReopen");
+    if (btnReopen) {
+      btnReopen.addEventListener("click", function() {
+        studentReopen(c);
+      });
+    }
+  }
+
+  function submitUpdate(current) {
+    var complaints = loadComplaints();
+    var idx = complaints.findIndex(function(x){ return x.id === current.id; });
+    if (idx === -1) {
+      toast("Complaint not found.", "error");
+      return;
+    }
+
+    var c = complaints[idx];
+    var note = document.getElementById("updateNote").value.trim();
+    var newStat = document.getElementById("newStatus").value;
+    var newPriority = current.priority;
+    var newStaffId = current.assignedToId || "";
+    var newStaffName = current.assignedTo || "";
+
+    if (user.role === "admin") {
+      newPriority = document.getElementById("editPriority").value;
+      newStaffId = document.getElementById("assignToStaff").value;
+      if (newStaffId) {
+        var sObj = getStaffList().find(function(s){ return s.id === newStaffId; });
+        newStaffName = sObj ? sObj.name : "";
+      } else {
+        newStaffName = "";
+      }
+    }
+
+    var statusChanged = newStat !== c.status;
+    var priorityChanged = newPriority !== c.priority;
+    var staffChanged = newStaffId !== (c.assignedToId || "");
+    var noteProvided = note.length > 0;
+
+    if (!statusChanged && !priorityChanged && !staffChanged && !noteProvided) {
+      toast("No changes or note provided.", "error");
+      return;
+    }
+
+    var now = new Date().toISOString();
+
+    // 1. Priority change log
+    if (priorityChanged) {
+      c.timeline.push({
+        date: now,
+        action: "Priority: " + c.priority + " -> " + newPriority,
+        by: user.name
+      });
+      c.priority = newPriority;
+    }
+
+    // 2. Staff assignment change log
+    if (staffChanged) {
+      c.assignedTo = newStaffName;
+      c.assignedToId = newStaffId;
+      if (!statusChanged) {
+        c.timeline.push({
+          date: now,
+          action: "Assigned to: " + (newStaffName || "Unassigned"),
+          by: user.name
+        });
+      }
+    }
+
+    // 3. Status change / note log
+    if (statusChanged) {
+      var act = "Status: " + c.status + " -> " + newStat;
+      if (noteProvided) {
+        act += " - " + note;
+      }
+      c.timeline.push({ date: now, action: act, by: user.name });
+      c.status = newStat;
+    } else if (noteProvided) {
+      c.timeline.push({ date: now, action: note, by: user.name });
+    }
+
+    c.updatedAt = now;
+    saveComplaints(complaints);
+    toast("Update saved!", "success");
+    renderDetailPage();
+  }
+
+  function studentClose(current) {
+    var complaints = loadComplaints();
+    var idx = complaints.findIndex(function(x){ return x.id === current.id; });
+    if (idx === -1) return;
+    var now = new Date().toISOString();
+    complaints[idx].status = "Closed";
+    complaints[idx].updatedAt = now;
+    complaints[idx].timeline.push({
+      date: now,
+      action: "Status: Resolved -> Closed - Confirmed by student",
+      by: user.name
+    });
+    saveComplaints(complaints);
+    toast("Complaint marked as closed.", "success");
+    renderDetailPage();
+  }
+
+  function studentReopen(current) {
+    var reason = prompt("Please provide a reason for reopening this complaint:");
+    if (reason === null) return;
+    var trimmed = reason.trim();
+    var complaints = loadComplaints();
+    var idx = complaints.findIndex(function(x){ return x.id === current.id; });
+    if (idx === -1) return;
+    var now = new Date().toISOString();
+    complaints[idx].status = "In Progress";
+    complaints[idx].updatedAt = now;
+    complaints[idx].timeline.push({
+      date: now,
+      action: "Status: Resolved -> In Progress - Reopened by student" + (trimmed ? ": " + trimmed : ""),
+      by: user.name
+    });
+    saveComplaints(complaints);
+    toast("Complaint reopened.", "info");
+    renderDetailPage();
+  }
+
+  renderDetailPage();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Complaints — CampusCare</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- Shared Sidebar -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- Main -->
+  <div class="main-content">
+    <header class="topbar">
+      <button id="navToggle" aria-label="Toggle navigation">☰</button>
+      <div class="topbar-title">My Complaints</div>
+      <div class="topbar-actions">
+        <a href="submit-complaint.html" class="btn btn-primary btn-sm">+ New</a>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <h1>My Complaints</h1>
+        <p>Filter and search your submitted complaints below.</p>
+      </div>
+
+      <!-- Filters -->
+      <div class="filters-bar">
+        <div class="filter-group">
+          <label for="fSearch">Search</label>
+          <input type="text" id="fSearch" placeholder="Title, ID, location…">
+        </div>
+        <div class="filter-group">
+          <label for="fStatus">Status</label>
+          <select id="fStatus">
+            <option value="all">All Statuses</option>
+            <option>Submitted</option>
+            <option>Assigned</option>
+            <option>In Progress</option>
+            <option>Waiting</option>
+            <option>Resolved</option>
+            <option>Closed</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="fCategory">Category</label>
+          <select id="fCategory">
+            <option value="all">All Categories</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="fPriority">Priority</label>
+          <select id="fPriority">
+            <option value="all">All Priorities</option>
+            <option>Urgent</option><option>High</option><option>Normal</option><option>Low</option>
+          </select>
+        </div>
+        <div class="filter-group" style="flex:none">
+          <label>&nbsp;</label>
+          <button class="btn btn-secondary btn-sm" id="clearFilters">Clear</button>
+        </div>
+      </div>
+
+      <div id="resultCount" style="font-size:.82rem;color:var(--text-muted);margin-bottom:12px"></div>
+      <div class="complaint-grid" id="complaintsGrid"></div>
+    </main>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="../js/data.js"></script>
+<script src="../js/app.js"></script>
+<script>
+var user = requireAuth(["student"]);
+if (user) {
+  buildSidebar(user, "my-complaints");
+  initMobileNav();
+
+  // Populate category filter
+  var catSel = document.getElementById("fCategory");
+  Object.keys(CATEGORIES).forEach(function(cat) {
+    var o = document.createElement("option");
+    o.value = cat;
+    o.textContent = cat;
+    catSel.appendChild(o);
+  });
+
+  var complaints = loadComplaints();
+
+  function applyFilters() {
+    var mine = filterComplaints(complaints, {
+      userId:   user.id,
+      status:   document.getElementById("fStatus").value,
+      category: document.getElementById("fCategory").value,
+      priority: document.getElementById("fPriority").value,
+      search:   document.getElementById("fSearch").value
+    });
+    document.getElementById("resultCount").textContent = mine.length + " complaint(s) found";
+    renderList(document.getElementById("complaintsGrid"), mine, "No complaints match your filters.");
+  }
+
+  wireFilters(["fSearch", "fStatus", "fCategory", "fPriority"], applyFilters);
+
+  document.getElementById("clearFilters").addEventListener("click", function() {
+    document.getElementById("fStatus").value = "all";
+    document.getElementById("fCategory").value = "all";
+    document.getElementById("fPriority").value = "all";
+    document.getElementById("fSearch").value = "";
+    applyFilters();
+  });
+
+  applyFilters();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login — CampusCare</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="auth-page">
+
+<div class="auth-card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px">
+    <div class="auth-logo" style="margin-bottom:0">
+      <div class="auth-logo-icon">🏫</div>
+      <div class="auth-logo-text">
+        <h2>CampusCare</h2>
+        <p>NMIMS Shirpur Campus Portal</p>
+      </div>
+    </div>
+    <button id="themeToggle" class="btn-icon" aria-label="Toggle light or dark theme">☾ Dark</button>
+  </div>
+
+  <h2 class="auth-title">Welcome Back</h2>
+  <p class="auth-sub">Sign in with your SAP ID or Staff ID to continue.</p>
+
+  <div id="loginAlert" class="alert alert-error" style="display:none"></div>
+
+  <form id="loginForm" novalidate>
+    <div class="form-group">
+      <label for="userId">SAP ID / Staff ID <span class="req">*</span></label>
+      <input type="text" id="userId" class="form-control" placeholder="e.g. 70012345678" autocomplete="username">
+      <div class="form-error" id="userIdErr"></div>
+    </div>
+    <div class="form-group">
+      <label for="password">Password <span class="req">*</span></label>
+      <div class="pw-wrap">
+        <input type="password" id="password" class="form-control" placeholder="Enter password" autocomplete="current-password">
+        <button type="button" class="pw-toggle" id="pwToggle" aria-label="Show password">👁</button>
+      </div>
+      <div class="form-error" id="pwErr"></div>
+    </div>
+    <button type="submit" class="btn btn-primary" style="width:100%" id="loginBtn">Sign In</button>
+  </form>
+
+  <!-- Demo credentials -->
+  <div class="auth-demo-box" id="demoBox">
+    <strong>🎓 Demo Credentials</strong>
+    <div style="margin-bottom:4px">
+      <code>70012345678</code> / <code>student123</code>
+      <button type="button" data-fill-id="70012345678" data-fill-pw="student123">Use</button>
+      <em style="font-size:.72rem">Student — Aarav Sharma</em>
+    </div>
+    <div style="margin-bottom:4px">
+      <code>70098765432</code> / <code>student123</code>
+      <button type="button" data-fill-id="70098765432" data-fill-pw="student123">Use</button>
+      <em style="font-size:.72rem">Student — Priya Patel</em>
+    </div>
+    <div style="margin-bottom:4px">
+      <code>STAFF101</code> / <code>staff123</code>
+      <button type="button" data-fill-id="STAFF101" data-fill-pw="staff123">Use</button>
+      <em style="font-size:.72rem">Staff — Rajesh Verma</em>
+    </div>
+    <div style="margin-bottom:4px">
+      <code>STAFF102</code> / <code>staff123</code>
+      <button type="button" data-fill-id="STAFF102" data-fill-pw="staff123">Use</button>
+      <em style="font-size:.72rem">Staff — Suresh Kumar</em>
+    </div>
+    <div style="margin-bottom:4px">
+      <code>STAFF103</code> / <code>staff123</code>
+      <button type="button" data-fill-id="STAFF103" data-fill-pw="staff123">Use</button>
+      <em style="font-size:.72rem">Staff — Meena Joshi</em>
+    </div>
+    <div style="margin-bottom:4px">
+      <code>STAFF104</code> / <code>staff123</code>
+      <button type="button" data-fill-id="STAFF104" data-fill-pw="staff123">Use</button>
+      <em style="font-size:.72rem">Staff — Prakash Singh</em>
+    </div>
+    <div>
+      <code>ADMIN001</code> / <code>admin123</code>
+      <button type="button" data-fill-id="ADMIN001" data-fill-pw="admin123">Use</button>
+      <em style="font-size:.72rem">Admin — Dr. S. K. Mehta</em>
+    </div>
+  </div>
+
+  <div class="auth-links">
+    <a href="../index.html">← Back to Home</a>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="../js/data.js"></script>
+<script src="../js/app.js"></script>
+<script>
+initTheme();
+
+// Event delegation for demo fill buttons
+var demoBox = document.getElementById("demoBox");
+if (demoBox) {
+  demoBox.addEventListener("click", function(e) {
+    var btn = e.target;
+    if (btn && btn.tagName === "BUTTON" && btn.getAttribute("data-fill-id")) {
+      document.getElementById("userId").value = btn.getAttribute("data-fill-id");
+      document.getElementById("password").value = btn.getAttribute("data-fill-pw");
+    }
+  });
+}
+
+var pwToggle = document.getElementById("pwToggle");
+if (pwToggle) {
+  pwToggle.addEventListener("click", function() {
+    var pw = document.getElementById("password");
+    if (pw.type === "password") {
+      pw.type = "text";
+      this.textContent = "🙈";
+      this.setAttribute("aria-label", "Hide password");
+    } else {
+      pw.type = "password";
+      this.textContent = "👁";
+      this.setAttribute("aria-label", "Show password");
+    }
+  });
+}
+
+document.getElementById("loginForm").addEventListener("submit", function(e) {
+  e.preventDefault();
+  var id  = document.getElementById("userId").value.trim();
+  var pw  = document.getElementById("password").value;
+  var err = document.getElementById("loginAlert");
+
+  document.getElementById("userIdErr").textContent = "";
+  document.getElementById("pwErr").textContent = "";
+  err.style.display = "none";
+
+  var valid = true;
+  if (!id) { document.getElementById("userIdErr").textContent = "Please enter your SAP/Staff ID."; valid = false; }
+  if (!pw) { document.getElementById("pwErr").textContent = "Please enter your password.";         valid = false; }
+  if (!valid) return;
+
+  var user = login(id, pw);
+  if (!user) {
+    err.textContent = "Invalid ID or password. Use the demo credentials below.";
+    err.style.display = "block";
+    return;
+  }
+
+  // Route by role
+  if (user.role === "student")   window.location.href = "student-dashboard.html";
+  else if (user.role === "staff") window.location.href = "staff-dashboard.html";
+  else                            window.location.href = "admin-dashboard.html";
+});
+</script>
+</body>
+</html>

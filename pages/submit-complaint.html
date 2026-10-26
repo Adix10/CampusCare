@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Submit Complaint — CampusCare</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- Shared Sidebar -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- Main -->
+  <div class="main-content">
+    <header class="topbar">
+      <button id="navToggle" aria-label="Toggle navigation">☰</button>
+      <div class="topbar-title">Submit a Complaint</div>
+      <div class="topbar-actions">
+        <a href="my-complaints.html" class="btn btn-secondary btn-sm">My Complaints</a>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <h1>New Complaint</h1>
+        <p>Fill in the details below. You'll receive a unique Ticket ID on submission.</p>
+      </div>
+
+      <div style="max-width:720px">
+        <div class="card">
+          <form id="complaintForm" novalidate>
+
+            <div class="form-group">
+              <label for="title">Complaint Title <span class="req">*</span></label>
+              <input type="text" id="title" class="form-control" placeholder="Short, clear description of the issue" maxlength="120">
+              <div class="form-error" id="titleErr"></div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="category">Category <span class="req">*</span></label>
+                <select id="category" class="form-control">
+                  <option value="">— Select Category —</option>
+                </select>
+                <div class="form-error" id="categoryErr"></div>
+              </div>
+              <div class="form-group">
+                <label for="subcategory">Sub-category <span class="req">*</span></label>
+                <select id="subcategory" class="form-control" disabled>
+                  <option value="">— Select Category First —</option>
+                </select>
+                <div class="form-error" id="subcategoryErr"></div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="location">Location <span class="req">*</span></label>
+                <select id="location" class="form-control">
+                  <option value="">— Select Location —</option>
+                </select>
+                <div class="form-error" id="locationErr"></div>
+              </div>
+              <div class="form-group">
+                <label for="priority">Priority</label>
+                <select id="priority" class="form-control">
+                  <option value="Low">Low</option>
+                  <option value="Normal" selected>Normal</option>
+                  <option value="High">High</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="description">Detailed Description <span class="req">*</span></label>
+              <textarea id="description" class="form-control" rows="5" placeholder="Describe the problem in detail. Include any relevant details such as time of occurrence, severity, affected area size, etc." maxlength="1000"></textarea>
+              <div class="form-hint"><span id="descCount">0</span>/1000 characters</div>
+              <div class="form-error" id="descErr"></div>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary" id="submitBtn">Submit Complaint</button>
+              <a href="student-dashboard.html" class="btn btn-secondary">Cancel</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="../js/data.js"></script>
+<script src="../js/app.js"></script>
+<script>
+var user = requireAuth(["student"]);
+if (user) {
+  buildSidebar(user, "submit");
+  initMobileNav();
+
+  // Populate category options
+  var catSel = document.getElementById("category");
+  Object.keys(CATEGORIES).forEach(function(c) {
+    var o = document.createElement("option");
+    o.value = c;
+    o.textContent = c;
+    catSel.appendChild(o);
+  });
+
+  // Populate location options
+  var locSel = document.getElementById("location");
+  LOCATIONS.forEach(function(l) {
+    var o = document.createElement("option");
+    o.value = l;
+    o.textContent = l;
+    locSel.appendChild(o);
+  });
+
+  // Category -> subcategory cascade
+  catSel.addEventListener("change", function() {
+    var sub = document.getElementById("subcategory");
+    sub.innerHTML = "";
+    sub.disabled = !this.value;
+    if (this.value) {
+      var def = document.createElement("option");
+      def.value = "";
+      def.textContent = "— Select Sub-category —";
+      sub.appendChild(def);
+      CATEGORIES[this.value].forEach(function(s) {
+        var o = document.createElement("option");
+        o.value = s;
+        o.textContent = s;
+        sub.appendChild(o);
+      });
+    } else {
+      var o = document.createElement("option");
+      o.value = "";
+      o.textContent = "— Select Category First —";
+      sub.appendChild(o);
+    }
+  });
+
+  // Character counter
+  document.getElementById("description").addEventListener("input", function() {
+    document.getElementById("descCount").textContent = this.value.length;
+  });
+
+  function validate(id, errId, check, msg) {
+    var el = document.getElementById(id);
+    var err = document.getElementById(errId);
+    if (!check(el.value.trim())) {
+      el.classList.add("error");
+      err.textContent = msg;
+      return false;
+    }
+    el.classList.remove("error");
+    err.textContent = "";
+    return true;
+  }
+
+  var isSubmitting = false;
+
+  document.getElementById("complaintForm").addEventListener("submit", function(e) {
+    e.preventDefault();
+    if (isSubmitting) return;
+
+    var btn = document.getElementById("submitBtn");
+    var v = true;
+    v = validate("title",       "titleErr",       function(v){ return v.length >= 5; },  "Title must be at least 5 characters.") && v;
+    v = validate("category",    "categoryErr",    function(v){ return v !== ""; },        "Please select a category.") && v;
+    v = validate("subcategory", "subcategoryErr", function(v){ return v !== ""; },        "Please select a sub-category.") && v;
+    v = validate("location",    "locationErr",    function(v){ return v !== ""; },        "Please select a location.") && v;
+    v = validate("description", "descErr",        function(v){ return v.length >= 20; },  "Description must be at least 20 characters.") && v;
+
+    if (!v) {
+      btn.disabled = false;
+      btn.textContent = "Submit Complaint";
+      isSubmitting = false;
+      return;
+    }
+
+    // Guard duplicate submissions
+    isSubmitting = true;
+    btn.disabled = true;
+    btn.textContent = "Submitting...";
+
+    var complaints = loadComplaints();
+    var now = new Date().toISOString();
+    var complaint = {
+      id:           nextId(complaints),
+      userId:       user.id,
+      title:        document.getElementById("title").value.trim(),
+      category:     document.getElementById("category").value,
+      sub:          document.getElementById("subcategory").value,
+      location:     document.getElementById("location").value,
+      priority:     document.getElementById("priority").value,
+      description:  document.getElementById("description").value.trim(),
+      status:       "Submitted",
+      assignedTo:   "",
+      assignedToId: "",
+      createdAt:    now,
+      updatedAt:    now,
+      timeline: [
+        { date: now, action: "Complaint submitted", by: user.name }
+      ]
+    };
+    complaints.push(complaint);
+    saveComplaints(complaints);
+
+    toast("Complaint submitted! Ticket ID: " + complaint.id, "success");
+
+    setTimeout(function() {
+      openComplaint(complaint.id);
+    }, 1200);
+  });
+}
+</script>
+</body>
+</html>

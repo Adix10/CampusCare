@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manage Complaints — CampusCare Admin</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- Shared Sidebar -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- Main -->
+  <div class="main-content">
+    <header class="topbar">
+      <button id="navToggle" aria-label="Toggle navigation">☰</button>
+      <div class="topbar-title">Manage All Complaints</div>
+      <div class="topbar-actions">
+        <button class="btn btn-secondary btn-sm" id="exportBtn">⬇ Export CSV</button>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <h1>Complaint Management</h1>
+        <p>Triage, assign, and update all student complaints.</p>
+      </div>
+
+      <!-- Filters -->
+      <div class="filters-bar">
+        <div class="filter-group">
+          <label for="fSearch">Search</label>
+          <input type="text" id="fSearch" placeholder="Title, ID, location…">
+        </div>
+        <div class="filter-group">
+          <label for="fStatus">Status</label>
+          <select id="fStatus">
+            <option value="all">All Statuses</option>
+            <option>Submitted</option><option>Assigned</option>
+            <option>In Progress</option><option>Waiting</option>
+            <option>Resolved</option><option>Closed</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="fCategory">Category</label>
+          <select id="fCategory"><option value="all">All Categories</option></select>
+        </div>
+        <div class="filter-group">
+          <label for="fPriority">Priority</label>
+          <select id="fPriority">
+            <option value="all">All</option>
+            <option>Urgent</option><option>High</option><option>Normal</option><option>Low</option>
+          </select>
+        </div>
+        <div class="filter-group" style="flex:none">
+          <label>&nbsp;</label>
+          <button class="btn btn-secondary btn-sm" id="clearFilters">Clear</button>
+        </div>
+      </div>
+
+      <div id="resultCount" style="font-size:.82rem;color:var(--text-muted);margin-bottom:12px"></div>
+
+      <div class="card" style="padding:0">
+        <div class="table-wrap">
+          <table id="complaintsTable">
+            <thead><tr>
+              <th>Ticket ID</th><th>Title</th><th>Category</th>
+              <th>Priority</th><th>Status</th><th>Assigned To</th>
+              <th>Submitted</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="complaintsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Quick-assign modal (accessible dialog) -->
+<div id="assignModal" role="dialog" aria-modal="true" aria-labelledby="assignModalTitle" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border-radius:var(--radius-lg);padding:28px;width:100%;max-width:420px;box-shadow:var(--shadow-lg)">
+    <h3 id="assignModalTitle" style="margin-bottom:16px">Assign Complaint</h3>
+    <p id="assignComplaintId" style="font-family:monospace;font-size:.85rem;margin-bottom:16px;color:var(--text-muted)"></p>
+    <div class="form-group">
+      <label for="assignStaff">Assign To</label>
+      <select id="assignStaff" class="form-control"></select>
+    </div>
+    <div class="form-group">
+      <label for="assignStatus">Change Status</label>
+      <select id="assignStatus" class="form-control">
+        <option>Submitted</option><option selected>Assigned</option>
+        <option>In Progress</option><option>Waiting</option>
+        <option>Resolved</option><option>Closed</option>
+      </select>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" id="confirmAssignBtn">Save</button>
+      <button class="btn btn-secondary" id="cancelAssignBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="../js/data.js"></script>
+<script src="../js/app.js"></script>
+<script>
+var user = requireAuth(["admin"]);
+if (user) {
+  buildSidebar(user, "manage-complaints");
+  initMobileNav();
+
+  var catSel = document.getElementById("fCategory");
+  Object.keys(CATEGORIES).forEach(function(c) {
+    var o = document.createElement("option");
+    o.value = c;
+    o.textContent = c;
+    catSel.appendChild(o);
+  });
+
+  var complaints = loadComplaints();
+  var currentId = null;
+  var lastFocusedElement = null;
+
+  function applyFilters() {
+    var filtered = filterComplaints(complaints, {
+      status:   document.getElementById("fStatus").value,
+      category: document.getElementById("fCategory").value,
+      priority: document.getElementById("fPriority").value,
+      search:   document.getElementById("fSearch").value
+    });
+
+    // Priority sort: Urgent (0) first, High (1), Normal (2), Low (3)
+    var order = { Urgent: 0, High: 1, Normal: 2, Low: 3 };
+    filtered.sort(function(a, b) {
+      var priA = order[a.priority] !== undefined ? order[a.priority] : 2;
+      var priB = order[b.priority] !== undefined ? order[b.priority] : 2;
+      return priA - priB || (new Date(b.createdAt) - new Date(a.createdAt));
+    });
+
+    document.getElementById("resultCount").textContent = filtered.length + " complaint(s)";
+    var tbody = document.getElementById("complaintsBody");
+    tbody.innerHTML = filtered.map(function(c) {
+      var assigned = c.assignedTo || "—";
+      if (c.assignedToId) assigned += " (" + c.assignedToId + ")";
+      return '<tr>' +
+        '<td><code style="font-size:.76rem">' + esc(c.id) + '</code></td>' +
+        '<td style="max-width:200px">' + esc(c.title) + '</td>' +
+        '<td>' + esc(c.category) + '</td>' +
+        '<td><span class="priority-dot ' + (PRIORITY_CLASS[c.priority] || "pri-normal") + '">' + esc(c.priority) + '</span></td>' +
+        '<td><span class="badge ' + (STATUS_CLASS[c.status] || "badge-gray") + '">' + esc(c.status) + '</span></td>' +
+        '<td>' + esc(assigned) + '</td>' +
+        '<td style="font-size:.76rem;white-space:nowrap">' + fmtDate(c.createdAt) + '</td>' +
+        '<td style="white-space:nowrap">' +
+          '<button class="btn btn-secondary btn-sm" style="margin-right:4px" data-action="view" data-id="' + esc(c.id) + '">View</button>' +
+          '<button class="btn btn-primary btn-sm" data-action="assign" data-id="' + esc(c.id) + '">Assign</button>' +
+        '</td>' +
+      '</tr>';
+    }).join("");
+
+    if (!filtered.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">No complaints match your filters.</td></tr>';
+    }
+  }
+
+  wireFilters(["fSearch","fStatus","fCategory","fPriority"], applyFilters);
+
+  document.getElementById("clearFilters").addEventListener("click", function() {
+    document.getElementById("fStatus").value = "all";
+    document.getElementById("fCategory").value = "all";
+    document.getElementById("fPriority").value = "all";
+    document.getElementById("fSearch").value = "";
+    applyFilters();
+  });
+
+  applyFilters();
+
+  // Event delegation on table
+  document.getElementById("complaintsTable").addEventListener("click", function(e) {
+    var btn = e.target;
+    if (btn && btn.tagName === "BUTTON") {
+      var action = btn.getAttribute("data-action");
+      var id = btn.getAttribute("data-id");
+      if (action === "view" && id) {
+        openComplaint(id);
+      } else if (action === "assign" && id) {
+        lastFocusedElement = btn;
+        openAssign(id);
+      }
+    }
+  });
+
+  function populateStaffDropdown(selectedStaffId) {
+    var sel = document.getElementById("assignStaff");
+    sel.innerHTML = '<option value="">— Select Staff —</option>';
+    var staffList = getStaffList();
+    staffList.forEach(function(s) {
+      var opt = document.createElement("option");
+      opt.value = s.id;
+      opt.textContent = s.name + " (" + s.id + ")";
+      if (s.id === selectedStaffId) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+
+  function openAssign(id) {
+    currentId = id;
+    document.getElementById("assignComplaintId").textContent = id;
+    var c = complaints.find(function(x){ return x.id === id; });
+    populateStaffDropdown(c ? c.assignedToId : "");
+    if (c) {
+      document.getElementById("assignStatus").value = c.status;
+    }
+    var modal = document.getElementById("assignModal");
+    modal.style.display = "flex";
+    setTimeout(function() {
+      document.getElementById("assignStaff").focus();
+    }, 50);
+  }
+
+  function closeModal() {
+    document.getElementById("assignModal").style.display = "none";
+    currentId = null;
+    if (lastFocusedElement && typeof lastFocusedElement.focus === "function") {
+      lastFocusedElement.focus();
+    }
+  }
+
+  function confirmAssign() {
+    var staffId = document.getElementById("assignStaff").value;
+    var status = document.getElementById("assignStatus").value;
+    if (!staffId) {
+      toast("Please select a staff member.", "error");
+      return;
+    }
+
+    var staffObj = getStaffList().find(function(s){ return s.id === staffId; });
+    var staffName = staffObj ? staffObj.name : "";
+
+    var idx = complaints.findIndex(function(x){ return x.id === currentId; });
+    if (idx === -1) return;
+
+    var now = new Date().toISOString();
+    complaints[idx].assignedTo = staffName;
+    complaints[idx].assignedToId = staffId;
+    complaints[idx].status = status;
+    complaints[idx].updatedAt = now;
+    complaints[idx].timeline.push({
+      date: now,
+      action: "Assigned to " + staffName + " (" + staffId + ") · Status: " + status,
+      by: user.name
+    });
+
+    saveComplaints(complaints);
+    toast("Assigned to " + staffName, "success");
+    closeModal();
+    applyFilters();
+  }
+
+  document.getElementById("confirmAssignBtn").addEventListener("click", confirmAssign);
+  document.getElementById("cancelAssignBtn").addEventListener("click", closeModal);
+
+  // Close modal on backdrop click
+  document.getElementById("assignModal").addEventListener("click", function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  // Close modal on Escape key
+  window.addEventListener("keydown", function(e) {
+    if ((e.key === "Escape" || e.keyCode === 27) && document.getElementById("assignModal").style.display === "flex") {
+      closeModal();
+    }
+  });
+
+  // CSV export with security sanitization and BOM
+  document.getElementById("exportBtn").addEventListener("click", function() {
+    var rows = [
+      ["Ticket ID", "Title", "Category", "Sub-category", "Location", "Priority", "Status", "Assigned Staff", "Staff ID", "Submitted", "Updated"]
+    ];
+    complaints.forEach(function(c) {
+      rows.push([
+        c.id,
+        c.title,
+        c.category,
+        c.sub,
+        c.location,
+        c.priority,
+        c.status,
+        c.assignedTo || "",
+        c.assignedToId || "",
+        c.createdAt,
+        c.updatedAt
+      ]);
+    });
+
+    var csvContent = rows.map(function(row) {
+      return row.map(sanitizeCsvCell).join(",");
+    }).join("\r\n");
+
+    var blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "CampusCare_Complaints_" + new Date().toISOString().slice(0, 10) + ".csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast("CSV exported!", "success");
+  });
+}
+</script>
+</body>
+</html>

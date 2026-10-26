@@ -1,134 +1,185 @@
-# CampusCare — NMIMS Shirpur Campus
+# CampusCare — Campus Complaint & Maintenance Management System
 
-> **Academic Prototype** · B.Tech CSE (Data Science) · Website Design & Development (WDD) · 2026  
-> *NMIMS Shirpur Campus Complaint & Maintenance Management System*  
-> *This is an independent academic project and is not an official NMIMS service.*
+A responsive, frontend-only web application for reporting, tracking, and managing campus facility complaints at NMIMS Shirpur.
 
----
+**Academic Project | Website Design & Development (WDD) | B.Tech CSE (Data Science) | 2026–27**
 
-## Project Overview
+> CampusCare is an independent academic prototype developed for educational purposes. It is not an official NMIMS service.
 
-CampusCare is a frontend-only campus complaint and maintenance management portal tailored for NMIMS Shirpur students. It provides a structured, responsive platform where students can report campus facility issues, track progress with unique ticket IDs, and view a complete resolution timeline. Demonstration portals for maintenance staff and administrators showcase workflow triage, technician work queues, priority escalations, and CSV report exports.
+## Overview
 
----
+CampusCare provides a centralized interface for managing campus maintenance complaints. Students can submit facility issues, receive unique ticket IDs, track complaint progress, and view their complaint history. Maintenance staff can access assigned tickets and update their status, while administrators can manage assignments, priorities, and complaint reports.
 
-## System Architecture
+Built using HTML5, CSS3, and vanilla JavaScript, the application runs directly in a web browser without a backend server, external database, or build tools.
 
-CampusCare follows a clean, decoupled three-layer architecture designed for maintainability and extensibility. Complete architectural documentation is available in [ARCHITECTURE.md](ARCHITECTURE.md).
+## Features
 
-| Layer | Technology | Primary Responsibility | Files Involved |
-|-------|------------|------------------------|----------------|
-| **Frontend** | HTML5, CSS3, Vanilla JS (ES5) | Structure, interactive views, user navigation | `index.html`, `pages/*.html` |
-| **UI / Presentation** | CSS3 (Variables, Grid, Flexbox) | Navy & Teal design system, typography, responsive breakpoints, dark mode | `css/style.css` |
-| **Logic** | Vanilla JavaScript | Session auth, filtering engine, sidebar rendering, validation, escaping, CSV sanitizing | `js/app.js` |
-| **Data** | Plain JavaScript Arrays + Web Storage | Data schemas, demo fixtures, CRUD persistence, data version migration | `js/data.js`, `localStorage`, `sessionStorage` |
-| **Output** | Dynamic DOM Injection | Array-to-HTML rendering, card grids, data tables, reactive status badges | `renderList()`, `renderStats()`, `.innerHTML` |
+- **Complaint Management:** Submit complaints with categories, subcategories, campus locations, priorities, and descriptions.
+- **Unique Ticket IDs:** Generate sequential complaint identifiers for tracking individual issues.
+- **Role-Based Dashboards:** Separate interfaces for students, maintenance staff, and administrators.
+- **Live Search & Filtering:** Filter complaints by status, category, priority, and keywords without reloading the page.
+- **Complaint Timeline:** Maintain a history of status changes, assignments, technician notes, and priority updates.
+- **Workflow Management:** Enforce defined complaint status transitions for maintenance staff.
+- **Staff Assignment:** Assign complaints to maintenance personnel and manage their work queues.
+- **Administrative Analytics:** Display complaint statistics and category summaries.
+- **CSV Export:** Export complaint records with protection against common spreadsheet formula injection.
+- **Student Feedback:** Allow students to confirm resolution or reopen a resolved complaint with a reason.
+- **Light & Dark Themes:** Switch between themes using a CSS variable-based design system.
+- **Responsive Interface:** Support desktop, tablet, and mobile layouts.
+- **Data Migration:** Upgrade stored browser data when the application schema changes.
 
----
+## Technology Stack
+
+| Technology | Purpose |
+|---|---|
+| HTML5 | Page structure and forms |
+| CSS3 | Responsive layouts, styling, and themes |
+| Vanilla JavaScript | Application logic, validation, and interactivity |
+| LocalStorage | Persistent complaint and application data |
+| SessionStorage | Browser-session data |
+| Git & GitHub | Version control and project hosting |
+
+**Dependencies:** No frameworks, packages, Node.js, npm, or build process are required.
 
 ## Project Structure
 
-```
+```text
 CampusCare/
-├── index.html                  ← Landing page (features, how it works, theme toggle)
-├── README.md                   ← Project overview, setup, and credentials
-├── ARCHITECTURE.md             ← Technical architecture and data flow specification
+├── index.html
+├── README.md
+├── ARCHITECTURE.md
 ├── css/
-│   └── style.css               ← Complete presentation design system (light/dark mode)
+│   └── style.css
 ├── js/
-│   ├── data.js                 ← Data layer: schemas, seed arrays, Web Storage helpers
-│   └── app.js                  ← Logic layer: auth, filtering, rendering, utilities
+│   ├── app.js
+│   └── data.js
 └── pages/
-    ├── login.html              ← Unified role-based login with quick-fill demo buttons
-    ├── student-dashboard.html  ← Student dashboard & live KPI metrics from complaint arrays
-    ├── submit-complaint.html   ← Complaint submission form with cascading categories
-    ├── my-complaints.html      ← Student complaint history with multi-criteria filters
-    ├── complaint-detail.html   ← Detail view with URL parameter (?id=...), timeline & update panel
-    ├── staff-dashboard.html    ← Maintenance staff work queue (filtered by assignedToId)
-    ├── admin-dashboard.html    ← System-wide overview, category breakdown & demo reset
-    └── manage-complaints.html  ← Admin triage table, staff assignment modal & CSV export
+    ├── login.html
+    ├── student-dashboard.html
+    ├── submit-complaint.html
+    ├── my-complaints.html
+    ├── complaint-detail.html
+    ├── staff-dashboard.html
+    ├── admin-dashboard.html
+    └── manage-complaints.html
 ```
 
----
+## System Architecture
 
-## Demo Credentials
+CampusCare uses a three-layer client-side architecture.
 
-All authentication is simulated for academic demonstration purposes. Click the **"Use"** button next to any credential on `pages/login.html` to auto-fill.
+| Layer | Responsibility | Main Files |
+|---|---|---|
+| Presentation | Page structure, layout, themes, and responsive design | `index.html`, `pages/*.html`, `css/style.css` |
+| Application Logic | Authentication checks, validation, filtering, rendering, and workflow rules | `js/app.js` |
+| Data Management | Data structures, demonstration records, browser storage, and schema migration | `js/data.js` |
 
-| Role | User ID | Password | Name | Department / Branch |
-|------|---------|----------|------|---------------------|
-| **Student** | `70012345678` | `student123` | Aarav Sharma | CSE-DS (Year 2) |
-| **Student** | `70098765432` | `student123` | Priya Patel | CSE (Year 3) |
-| **Staff** | `STAFF101` | `staff123` | Rajesh Verma | Maintenance |
-| **Staff** | `STAFF102` | `staff123` | Suresh Kumar | Maintenance |
-| **Staff** | `STAFF103` | `staff123` | Meena Joshi | Maintenance |
-| **Staff** | `STAFF104` | `staff123` | Prakash Singh | Maintenance |
-| **Admin** | `ADMIN001` | `admin123` | Dr. S. K. Mehta | Administration |
+The browser's Web Storage APIs provide local persistence. JavaScript manages application logic and updates the interface dynamically.
 
-> **Security Note:** Authentication is simulated client-side with plaintext demo credentials. A real deployment needs server-side authentication, hashed passwords and server-side role checks.
+For the detailed architecture and data flow, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
----
+## Getting Started
 
-## How to Run
+### Prerequisites
 
-1. Navigate to the `CampusCare` folder on your computer.
-2. Double-click `index.html` to open it in any web browser (Chrome, Edge, Firefox, Safari).
-3. Click **"Student Login"** or **"Login & Report"** to open the login page.
-4. Click **"Use"** on any demo account, then click **"Sign In"**.
+- A modern web browser such as Google Chrome, Microsoft Edge, or Mozilla Firefox.
+- A local copy of this repository.
 
-*Zero dependencies · No node/npm required · No build step · Fully functional via `file://` protocol.*
+### Run Locally
 
----
+1. Clone the repository:
 
-## Core Features
+   ```bash
+   git clone https://github.com/Adix10/CampusCare.git
+   ```
 
-- **Sequential Ticket IDs:** IDs are generated from the highest existing ticket number + 1 (e.g. `CC-2026-00001`), ensuring unique, chronological identifiers.
-- **Cascading Facility Categories:** Six campus facility types (Electrical, Plumbing, Civil, IT/Network, Housekeeping, Hostel) with dynamic sub-category population.
-- **Client-Side Real-Time Filtering:** Instant multi-parameter filtering by status, category, priority, and free-text search across titles, locations, IDs, and descriptions without page reload.
-- **Audit Timeline:** Every status change, assignment, technician note, and priority update is logged with an ISO timestamp and user identity in an append-only timeline.
-- **Workflow State Management:** Maintenance staff follow verified status progression (`STATUS_FLOW`), while administrators have complete status and priority override authority.
-- **Deep-Linkable Detail Page:** The complaint detail page reads IDs via URL query parameters (`complaint-detail.html?id=CC-2026-00001`), supporting direct linking and new browser tabs.
-- **Student Resolution Feedback:** When a ticket is marked `Resolved`, the reporting student can directly confirm closure or reopen the complaint with a reason.
-- **Accessible Modal & Dialogs:** WAI-ARIA compliant assignment modal (`role="dialog"`, `aria-modal="true"`) with Escape key handling, initial input focus, and focus restoration.
-- **Sanitized CSV Export:** Neutralizes spreadsheet formula injection risks (`=`, `+`, `-`, `@`) and embeds a UTF-8 BOM for Microsoft Excel compatibility.
-- **Light & Dark Theme Toggle:** CSS Variable-based theme switching persisted in `localStorage`.
-- **Schema Migration & Demo Reset:** Automatically upgrades existing browser storage to schema version 2; includes an admin-only one-click demo data reset button.
+2. Open the project directory:
 
----
+   ```bash
+   cd CampusCare
+   ```
+
+3. Open `index.html` in your web browser.
+4. Navigate to the login page and select a demonstration account.
+
+No installation, dependency setup, or compilation is required.
+
+## Demonstration Accounts
+
+The application includes fictional accounts for testing its three user roles.
+
+| Role | User ID | Password |
+|---|---|---|
+| Student | `70012345678` | `student123` |
+| Student | `70098765432` | `student123` |
+| Maintenance Staff | `STAFF101` | `staff123` |
+| Maintenance Staff | `STAFF102` | `staff123` |
+| Maintenance Staff | `STAFF103` | `staff123` |
+| Maintenance Staff | `STAFF104` | `staff123` |
+| Administrator | `ADMIN001` | `admin123` |
+
+On the login page, use the available **Use** buttons to autofill demonstration credentials.
+
+**Security notice:** These credentials are intentionally included for demonstration. Authentication is simulated on the client side and is not suitable for production use.
+
+## Complaint Lifecycle
+
+The application supports the following complaint workflow:
+
+`Submitted → Assigned → In Progress → Resolved → Closed`
+
+A complaint may also move to **Waiting** when parts or access are pending. A resolved complaint can be reopened when the issue persists. Permitted status transitions depend on the user's role and the defined workflow.
+
+## Testing & Validation
+
+The project documentation records checks covering:
+
+- Ticket ID generation and data migration.
+- Complaint status workflow and staff assignment.
+- Priority sorting and real-time filtering.
+- Output escaping and CSV formula-injection protection.
+- Role-specific dashboards and navigation.
+- Form submission safeguards and browser-storage error handling.
+- Stylesheet and JavaScript resource paths.
+
+These checks relate to the academic prototype and do not constitute a production security audit.
 
 ## Known Limitations
 
-- **Browser-Local Storage:** Data is persisted in `localStorage` and `sessionStorage`. Data is local to each browser profile and does not sync across different computers or browsers.
-- **Simulated Authentication:** Intended for academic demonstration without server-side validation or password hashing.
-- **No File Uploads:** Photo attachments are excluded in the prototype to prevent browser `localStorage` quota exhaustion.
-- **No Push Notifications:** Email and push notifications are simulated in the timeline rather than dispatched over SMTP/SMS.
+- **No backend:** Data is stored locally in the browser and is not shared between users or devices.
+- **Simulated authentication:** Credentials and role checks are handled client-side; they do not provide production-grade security.
+- **No file attachments:** Complaint photo uploads are not implemented.
+- **No external notifications:** Email, SMS, and push notifications are not sent.
+- **Demonstration data:** Names, accounts, and complaint records are fictional.
 
----
+## Future Scope
 
-## Changelog
+- Integrate a backend API and centralized database.
+- Implement server-side authentication, password hashing, and authorization.
+- Add image attachments and maintenance evidence.
+- Introduce email and SMS notifications.
+- Add analytics for complaint trends and resolution times.
+- Develop a mobile application for easier campus access.
 
-- **Task 1 — Navigation Redirects:** Added `rootPath()` to resolve correct relative pathing between root and sub-pages.
-- **Task 2 — Shared Role-Aware Sidebar:** Implemented `buildSidebar(user, activePage)` with role-isolated navigation items and user profile chip.
-- **Task 3 — Priority Sorting:** Fixed priority sorting bug in `manage-complaints.html` so `Urgent` complaints consistently appear at the top.
-- **Task 4 — Staff Assignment:** Expanded staff demo accounts (STAFF101-STAFF104), integrated `getStaffList()`, added `assignedToId`, and replaced free-text inputs with dropdown selects.
-- **Task 5 — Workflow State Rules:** Added `STATUS_FLOW` rules enforcing valid staff progression, combined timeline logging for status and notes, and eliminated page reloads on update.
-- **Task 6 — URL Parameter Navigation:** Converted complaint details to `complaint-detail.html?id=...` with `URLSearchParams`, added `openComplaint()`, and eliminated inline ID handlers.
-- **Task 7 — Priority Control:** Restricted student submission to Low, Normal, and High; granted administrators exclusive priority escalation controls (`Urgent`).
-- **Task 8 — Duplicate Submission Guard:** Added submit button disabling and boolean submission lock on complaint submission.
-- **Task 9 — Data Versioning & Migration:** Added `DATA_VERSION = 2` schema migration in `loadComplaints()` and implemented `resetDemoData()` with an admin confirmation trigger.
-- **Task 10 — Theme Toggle Integrity:** Fixed `initTheme()` to preserve icon markup and added theme toggle buttons to landing and login pages.
-- **Task 11 — Security Hardening:** Updated `esc()` with single-quote escaping (`&#39;`), sanitized CSV export cells against formula injection, and wrapped all JSON parsing in `try/catch`.
-- **Task 12 — Accessibility Enhancements:** Added `role="status"` and `aria-live="polite"` to toast elements, added ARIA dialog attributes and keyboard focus traps to the modal, and ensured all form labels have matching `for` targets.
-- **Task 13 — Honest Documentation:** Updated landing page and documentation to accurately describe implemented prototype features.
-- **Task 14 — Architecture Alignment:** Formalized 3-layer architecture, authored `ARCHITECTURE.md`, eliminated DOM manipulation from `data.js`, and added shared helpers (`wireFilters`, `renderStats`).
-- **Optional Feature — Student Feedback:** Allowed students to directly accept closure or reopen resolved complaints with timeline logging.
+## Academic Context
 
----
+**Course:** Website Design & Development (WDD)  
+**Program:** B.Tech Computer Science and Engineering (Data Science)  
+**Institution:** SVKM's NMIMS, Mukesh Patel School of Technology Management & Engineering, Shirpur Campus  
+**Academic Session:** 2026–27
+
+**Project Contributors**
+- Aditya Sharma — D218
+- Megh Tandel — D228
+
+**Project Guide:** Dr. Naziya Hussain, Assistant Professor, Department of Computer Engineering
 
 ## Disclaimer
 
-This website is an **independent academic prototype** developed for educational evaluation in the B.Tech Computer Science and Engineering (Data Science) Website Designing and Development (WDD) course at NMIMS Shirpur.
-
-It is not an official portal of SVKM's NMIMS University and does not connect to NMIMS SAP, portal servers, or institutional databases. All data, names, and tickets are fictional demonstration records.
+CampusCare is an independent academic project created for educational evaluation. It is not affiliated with, endorsed by, or operated as an official service of NMIMS University. It does not connect to institutional SAP systems, university servers, or official student databases. All demonstration accounts and records are fictional.
 
 Official campus website: [shirpur.nmims.edu](https://shirpur.nmims.edu/)
+
+---
+
+*Developed as a Website Design & Development mini project, 2026–27.*
